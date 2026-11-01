@@ -7,9 +7,8 @@
 <meta name="description" content="한 달에 얼마 쓰는지 가볍게 적어두는 기록장">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="한달얼마">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#F7F5F0" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1E1E1E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -19,7 +18,7 @@
 <main id="app">
   <header class="month-nav">
     <button class="icon-btn" id="prev-month" aria-label="이전 달">‹</button>
-    <h1 id="month-title"></h1>
+    <h1><button id="month-title" aria-label="이번 달로 돌아가기"></button></h1>
     <button class="icon-btn" id="next-month" aria-label="다음 달">›</button>
   </header>
 
@@ -36,22 +35,30 @@
   </section>
 
   <section id="list-section">
-    <h2>기록</h2>
+    <h2 class="list-head"><span id="list-title">기록</span><button id="clear-filter" hidden>전체 보기</button></h2>
     <div id="list"></div>
   </section>
 
-  <p class="empty" id="empty" hidden>이 달은 아직 기록이 없어요.</p>
+  <p class="empty" id="empty" hidden>이 달은 아직 기록이 없어요.<br>아래 버튼으로 남겨보세요.</p>
 
   <button class="text-btn" id="open-backup">백업</button>
 </main>
 
-<div class="add-bar"><button class="primary" id="open-add">+ 기록하기</button></div>
+<div class="add-bar">
+  <div class="quick" id="quick"></div>
+  <button class="primary" id="open-add">+ 기록하기</button>
+</div>
 
 <div class="backdrop" id="backdrop" hidden></div>
 
 <section class="sheet" id="entry-sheet" role="dialog" aria-modal="true" aria-label="지출 기록" hidden>
-  <div class="sheet-head">
-    <input class="date-input" id="f-date" type="date" aria-label="날짜">
+  <div class="sheet-grip" data-drag></div>
+  <div class="sheet-head" data-drag>
+    <div class="date-picks">
+      <button class="date-chip" data-days-ago="0">오늘</button>
+      <button class="date-chip" data-days-ago="1">어제</button>
+      <input class="date-input" id="f-date" type="date" aria-label="날짜">
+    </div>
     <button class="icon-btn small" data-close aria-label="닫기">✕</button>
   </div>
   <p class="amount" id="f-amount" aria-live="polite"></p>
@@ -70,7 +77,8 @@
 </section>
 
 <section class="sheet" id="backup-sheet" role="dialog" aria-modal="true" aria-label="백업" hidden>
-  <div class="sheet-head">
+  <div class="sheet-grip" data-drag></div>
+  <div class="sheet-head" data-drag>
     <h2>백업</h2>
     <button class="icon-btn small" data-close aria-label="닫기">✕</button>
   </div>
@@ -80,7 +88,10 @@
   <label class="secondary">파일에서 가져오기<input id="import" type="file" accept=".json,application/json" hidden></label>
 </section>
 
-<div class="toast" id="toast" role="status" hidden></div>
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toast-text"></span>
+  <button id="toast-undo" hidden>되돌리기</button>
+</div>
 
 <script src="app.js"></script>
 </body>

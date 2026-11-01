@@ -24,10 +24,12 @@ const won = (n) => `${n.toLocaleString('ko-KR')}원`;
 
 // ---- 날짜 ----
 const pad = (n) => String(n).padStart(2, '0');
-function todayStr() {
+function daysAgoStr(n) {
   const d = new Date();
+  d.setDate(d.getDate() - n);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+const todayStr = () => daysAgoStr(0);
 const monthOf = (date) => date.slice(0, 7);
 function addMonths(ym, delta) {
   const [y, m] = ym.split('-').map(Number);
@@ -64,6 +66,14 @@ function persist() {
 
 let entries = load();
 let viewMonth = monthOf(todayStr());
+let filterCat = null;
+
+const snapshot = () => entries.map((e) => ({ ...e }));
+function setMonth(ym) {
+  viewMonth = ym;
+  filterCat = null;
+  render();
+}
 
 // ---- 월별 계산 ----
 // 이용권은 결제한 달부터 개월 수만큼 나눠서 잡고, 나머지 원 단위는 첫 달에 몰아준다.
@@ -78,6 +88,7 @@ const monthTotal = (ym) => entries.reduce((sum, e) => sum + shareIn(e, ym), 0);
 
 // ---- 메인 화면 ----
 function render() {
+  if (filterCat && !entries.some((e) => e.cat === filterCat && shareIn(e, viewMonth))) filterCat = null;
   const [y, m] = viewMonth.split('-').map(Number);
   $('month-title').textContent = `${y}년 ${m}월`;
   $('next-month').disabled = viewMonth >= monthOf(todayStr());
@@ -89,6 +100,7 @@ function render() {
   renderTrend();
   renderBreakdown(total);
   renderList();
+  renderQuick();
 
   const hasAny = total > 0;
   $('breakdown-section').hidden = !hasAny;
@@ -125,16 +137,51 @@ function renderBreakdown(total) {
   }
   const rows = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
   const top = rows.length ? rows[0][1] : 1;
+  $('breakdown').classList.toggle('filtering', Boolean(filterCat));
   $('breakdown').innerHTML = rows.map(([cat, amount]) => {
     const c = CAT_BY_ID[cat] || CAT_BY_ID.etc;
-    return `<li>
-      <div class="bd-row">
+    return `<li><button class="bd-btn" data-filter="${esc(cat)}" aria-pressed="${filterCat === cat}">
+      <span class="bd-row">
         <span><span class="bd-emoji" aria-hidden="true">${c.emoji}</span>${c.label}</span>
         <span class="bd-amount">${won(amount)}<span class="bd-share">${Math.round((amount / total) * 100)}%</span></span>
-      </div>
-      <div class="bd-track"><div class="bd-fill" style="width:${(amount / top) * 100}%"></div></div>
-    </li>`;
+      </span>
+      <span class="bd-track" style="display:block"><span class="bd-fill" style="display:block;width:${(amount / top) * 100}%"></span></span>
+    </button></li>`;
   }).join('');
+}
+
+// 최근 90일에 자주 쓴 항목+금액 조합. 이용권은 매번 달라서 뺀다.
+function quickItems() {
+  const since = daysAgoStr(90);
+  const counts = new Map();
+  for (const e of entries) {
+    if (e.date < since || e.cat === 'gym' || !CAT_BY_ID[e.cat]) continue;
+    const key = `${e.cat}|${e.amount}`;
+    const item = counts.get(key) || { cat: e.cat, amount: e.amount, count: 0, last: '' };
+    item.count += 1;
+    if (e.date > item.last) item.last = e.date;
+    counts.set(key, item);
+  }
+  return [...counts.values()]
+    .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))
+    .slice(0, 5);
+}
+
+function renderQuick() {
+  $('quick').innerHTML = quickItems().map(({ cat, amount }) => {
+    const c = CAT_BY_ID[cat];
+    return `<button class="quick-chip" data-quick-cat="${cat}" data-quick-amount="${amount}" aria-label="오늘 ${c.label} ${won(amount)} 기록">${c.emoji} ${amount.toLocaleString('ko-KR')}</button>`;
+  }).join('');
+}
+
+function quickRecord(cat, amount) {
+  const before = snapshot();
+  const date = todayStr();
+  entries.push({ id: crypto.randomUUID(), createdAt: Date.now(), date, amount, cat, memo: '', months: 1 });
+  persist();
+  viewMonth = monthOf(date);
+  render();
+  toast(`${CAT_BY_ID[cat].label} ${won(amount)} 기록했어요`, before);
 }
 
 function rowHtml(e, ym) {
@@ -157,7 +204,9 @@ function rowHtml(e, ym) {
 }
 
 function renderList() {
-  const visible = entries.filter((e) => shareIn(e, viewMonth) > 0);
+  $('list-title').textContent = filterCat ? `${(CAT_BY_ID[filterCat] || CAT_BY_ID.etc).label} 기록` : '기록';
+  $('clear-filter').hidden = !filterCat;
+  const visible = entries.filter((e) => shareIn(e, viewMonth) > 0 && (!filterCat || e.cat === filterCat));
   const carried = visible.filter((e) => monthOf(e.date) !== viewMonth);
   const days = new Map();
   for (const e of visible) {
@@ -178,7 +227,7 @@ function renderList() {
 }
 
 // ---- 기록 시트 ----
-const form = { id: null, date: '', amount: '', cat: null, months: 3, replaceOnType: false };
+const form = { id: null, amount: '', cat: null, months: 3, replaceOnType: false };
 
 function recentAmounts(cat) {
   const seen = [];
@@ -194,16 +243,14 @@ function recentAmounts(cat) {
 
 function openEntry(entry) {
   form.id = entry ? entry.id : null;
-  form.date = entry ? entry.date : todayStr();
   form.amount = entry ? String(entry.amount) : '';
   form.cat = entry ? entry.cat : null;
   form.months = entry && entry.months ? entry.months : lastGymMonths();
   form.replaceOnType = Boolean(entry);
-  $('f-date').value = form.date;
+  $('f-date').value = entry ? entry.date : todayStr();
   $('f-date').max = todayStr();
   $('f-memo').value = entry ? entry.memo || '' : '';
   $('f-delete').hidden = !entry;
-  resetDeleteButton();
   renderForm();
   openSheet('entry-sheet');
 }
@@ -213,7 +260,19 @@ function lastGymMonths() {
   return gym ? gym.months || 1 : 3;
 }
 
+function renderDatePicks() {
+  const date = $('f-date').value;
+  let matched = false;
+  document.querySelectorAll('[data-days-ago]').forEach((b) => {
+    const on = date === daysAgoStr(Number(b.dataset.daysAgo));
+    b.setAttribute('aria-pressed', on);
+    matched = matched || on;
+  });
+  $('f-date').classList.toggle('custom', !matched);
+}
+
 function renderForm() {
+  renderDatePicks();
   const amount = Number(form.amount) || 0;
   const amountEl = $('f-amount');
   amountEl.textContent = won(amount);
@@ -258,6 +317,7 @@ function pressKey(key) {
 function saveEntry() {
   const amount = Number(form.amount) || 0;
   if (!form.cat || !amount) return;
+  const before = snapshot();
   const data = {
     date: $('f-date').value || todayStr(),
     amount,
@@ -274,29 +334,21 @@ function saveEntry() {
   viewMonth = monthOf(data.date);
   closeSheets();
   render();
-}
-
-function resetDeleteButton() {
-  const btn = $('f-delete');
-  btn.textContent = '삭제';
-  delete btn.dataset.armed;
+  toast(`${CAT_BY_ID[data.cat].label} ${won(amount)} ${form.id ? '수정' : '기록'}했어요`, before);
 }
 
 function deleteEntry() {
-  const btn = $('f-delete');
-  if (!btn.dataset.armed) {
-    btn.dataset.armed = '1';
-    btn.textContent = '정말?';
-    return;
-  }
+  const before = snapshot();
   entries = entries.filter((e) => e.id !== form.id);
   persist();
   closeSheets();
   render();
+  toast('삭제했어요', before);
 }
 
 // ---- 시트 열고 닫기 ----
 function openSheet(id) {
+  $('toast').hidden = true;
   $('backdrop').hidden = false;
   $(id).hidden = false;
 }
@@ -355,12 +407,65 @@ async function importBackup(file) {
 }
 
 let toastTimer;
-function toast(message) {
-  const el = $('toast');
-  el.textContent = message;
-  el.hidden = false;
+let undoState = null;
+function toast(message, undo = null) {
+  undoState = undo;
+  $('toast-text').textContent = message;
+  $('toast-undo').hidden = !undo;
+  $('toast').hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2400);
+  toastTimer = setTimeout(() => {
+    $('toast').hidden = true;
+    undoState = null;
+  }, undo ? 5000 : 2400);
+}
+function undoLast() {
+  if (!undoState) return;
+  entries = undoState;
+  undoState = null;
+  persist();
+  render();
+  toast('되돌렸어요');
+}
+
+// 시트 윗부분을 아래로 끌면 닫힌다.
+function enableSheetDrag(handle) {
+  const sheet = handle.closest('.sheet');
+  let startY = null;
+  let dragged = 0;
+  handle.addEventListener('touchstart', (ev) => {
+    if (ev.target.closest('button, input')) return;
+    startY = ev.touches[0].clientY;
+    dragged = 0;
+  }, { passive: true });
+  handle.addEventListener('touchmove', (ev) => {
+    if (startY === null) return;
+    dragged = Math.max(0, ev.touches[0].clientY - startY);
+    sheet.style.transform = `translateY(${dragged}px)`;
+  }, { passive: true });
+  handle.addEventListener('touchend', () => {
+    if (startY === null) return;
+    startY = null;
+    sheet.style.transform = '';
+    if (dragged > 80) closeSheets();
+  });
+}
+
+// 메인 화면을 좌우로 밀면 달이 바뀐다.
+function enableMonthSwipe(area) {
+  let start = null;
+  area.addEventListener('touchstart', (ev) => {
+    start = ev.touches.length === 1 ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY } : null;
+  }, { passive: true });
+  area.addEventListener('touchend', (ev) => {
+    if (!start) return;
+    const dx = ev.changedTouches[0].clientX - start.x;
+    const dy = ev.changedTouches[0].clientY - start.y;
+    start = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return;
+    if (dx > 0) setMonth(addMonths(viewMonth, -1));
+    else if (viewMonth < monthOf(todayStr())) setMonth(addMonths(viewMonth, 1));
+  }, { passive: true });
 }
 
 // ---- 이벤트 ----
@@ -372,13 +477,33 @@ $('open-add').addEventListener('click', () => openEntry(null));
 $('open-backup').addEventListener('click', openBackup);
 $('backdrop').addEventListener('click', closeSheets);
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSheets));
-$('prev-month').addEventListener('click', () => { viewMonth = addMonths(viewMonth, -1); render(); });
-$('next-month').addEventListener('click', () => { viewMonth = addMonths(viewMonth, 1); render(); });
+$('prev-month').addEventListener('click', () => setMonth(addMonths(viewMonth, -1)));
+$('next-month').addEventListener('click', () => setMonth(addMonths(viewMonth, 1)));
+$('month-title').addEventListener('click', () => setMonth(monthOf(todayStr())));
+$('toast-undo').addEventListener('click', undoLast);
+document.querySelectorAll('[data-drag]').forEach(enableSheetDrag);
+enableMonthSwipe($('app'));
 
 $('trend').addEventListener('click', (ev) => {
   const col = ev.target.closest('[data-month]');
-  if (col) { viewMonth = col.dataset.month; render(); }
+  if (col) setMonth(col.dataset.month);
 });
+$('quick').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-quick-cat]');
+  if (btn) quickRecord(btn.dataset.quickCat, Number(btn.dataset.quickAmount));
+});
+$('breakdown').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-filter]');
+  if (!btn) return;
+  filterCat = filterCat === btn.dataset.filter ? null : btn.dataset.filter;
+  render();
+});
+$('clear-filter').addEventListener('click', () => { filterCat = null; render(); });
+document.querySelectorAll('[data-days-ago]').forEach((b) => b.addEventListener('click', () => {
+  $('f-date').value = daysAgoStr(Number(b.dataset.daysAgo));
+  renderDatePicks();
+}));
+$('f-date').addEventListener('change', renderDatePicks);
 $('list').addEventListener('click', (ev) => {
   const row = ev.target.closest('[data-edit]');
   if (row) openEntry(entries.find((e) => e.id === row.dataset.edit));
