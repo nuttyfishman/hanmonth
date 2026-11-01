@@ -1,0 +1,247 @@
+:root {
+  color-scheme: light dark;
+  --bg: #F7F5F0;
+  --card: #FFFFFF;
+  --ink: #1E1C19;
+  --muted: #6F6A62;
+  --line: #E4E0D8;
+  --track: #ECE8E0;
+  --bar-rest: #CFC9BD;
+  --accent: #C2410C;
+  --on-accent: #FFFFFF;
+  --accent-soft: #FBE9DF;
+  --danger: #B42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141311;
+    --card: #1F1D1A;
+    --ink: #F2EFE9;
+    --muted: #A39D93;
+    --line: #322F2A;
+    --track: #2B2925;
+    --bar-rest: #4F4B44;
+    --accent: #FF9159;
+    --on-accent: #1E1208;
+    --accent-soft: #3A2316;
+    --danger: #FF8A80;
+  }
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; background: var(--bg); }
+
+body {
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  word-break: keep-all;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; touch-action: manipulation; }
+h1, h2, p, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+
+#app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 8px) 20px calc(env(safe-area-inset-bottom) + 96px);
+}
+
+.month-nav { display: flex; align-items: center; justify-content: space-between; }
+.month-nav h1 { font-size: 16px; font-weight: 600; }
+
+.icon-btn {
+  width: 44px; height: 44px;
+  font-size: 26px; line-height: 1;
+  color: var(--muted);
+  border-radius: 22px;
+}
+.icon-btn:active { background: var(--track); }
+.icon-btn:disabled { opacity: .25; }
+.icon-btn.small { font-size: 16px; }
+
+.hero { text-align: center; padding: 12px 0 20px; }
+.hero-total {
+  font-size: 44px; font-weight: 700;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.hero-delta { color: var(--muted); font-size: 14px; min-height: 20px; }
+
+/* 최근 6개월 막대 */
+.trend {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  margin-bottom: 28px;
+}
+.trend-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 44px; }
+.trend-plot {
+  height: 72px; width: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+  border-bottom: 1px solid var(--line);
+}
+.trend-bar { width: 22px; background: var(--bar-rest); border-radius: 4px 4px 0 0; }
+.trend-col.current .trend-bar { background: var(--accent); }
+.trend-label { font-size: 12px; color: var(--muted); }
+.trend-col.current .trend-label { color: var(--ink); font-weight: 600; }
+
+section > h2 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+#breakdown-section { margin-bottom: 28px; }
+
+.breakdown li { padding: 8px 0; }
+.bd-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 15px; }
+.bd-emoji { margin-right: 8px; }
+.bd-amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+.bd-share { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 13px; }
+.bd-track { height: 6px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.bd-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+
+.day { margin-bottom: 16px; }
+.day-head {
+  display: flex; justify-content: space-between;
+  font-size: 13px; color: var(--muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.day-head span:last-child { font-variant-numeric: tabular-nums; }
+
+.row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 56px;
+  padding: 8px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.row:active { opacity: .6; }
+.row-emoji { font-size: 22px; width: 28px; text-align: center; flex: none; }
+.row-text { flex: 1; min-width: 0; }
+.row-title { display: block; }
+.row-sub { display: block; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-amount { font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
+
+.empty { text-align: center; color: var(--muted); padding: 32px 0; }
+
+.text-btn {
+  display: block; margin: 24px auto 0;
+  min-height: 44px; padding: 0 16px;
+  color: var(--muted); font-size: 14px;
+}
+
+.add-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 20px calc(env(safe-area-inset-bottom) + 12px);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  pointer-events: none;
+}
+.add-bar .primary { pointer-events: auto; max-width: 480px; margin: 0 auto; display: block; }
+
+.primary, .secondary {
+  display: block; width: 100%;
+  height: 52px; line-height: 52px;
+  border-radius: 14px;
+  font-weight: 600; font-size: 17px;
+  text-align: center;
+}
+.primary { background: var(--accent); color: var(--on-accent); }
+.primary:active { opacity: .85; }
+.primary:disabled { background: var(--track); color: var(--muted); opacity: 1; }
+.secondary { background: var(--track); cursor: pointer; }
+.danger { flex: none; width: 72px; height: 52px; color: var(--danger); font-weight: 600; font-size: 15px; }
+
+/* 바텀시트 */
+.backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); z-index: 10; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 11;
+  max-width: 520px; margin: 0 auto;
+  max-height: 100dvh; overflow-y: auto;
+  background: var(--card);
+  border-radius: 20px 20px 0 0;
+  padding: 8px 20px calc(env(safe-area-inset-bottom) + 12px);
+  animation: rise .22s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes rise { from { transform: translateY(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+
+.sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+.sheet-head h2 { font-size: 17px; }
+
+.date-input {
+  border: 0; background: var(--track);
+  border-radius: 10px;
+  height: 36px; padding: 0 10px;
+  font-size: 16px;
+  -webkit-appearance: none; appearance: none;
+}
+
+.amount {
+  text-align: center;
+  font-size: 38px; font-weight: 700;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 0;
+}
+.amount.placeholder { color: var(--bar-rest); }
+
+.recent { display: flex; justify-content: center; gap: 6px; min-height: 36px; margin-bottom: 10px; }
+.chip {
+  height: 32px; padding: 0 12px;
+  border-radius: 16px;
+  background: var(--track);
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+
+.cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.cat {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 60px;
+  border-radius: 12px;
+  background: var(--track);
+  font-size: 12px;
+}
+.cat-emoji { font-size: 20px; line-height: 1.2; }
+.cat[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 600; }
+
+.plan { margin-bottom: 10px; }
+.segments { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--track); border-radius: 10px; padding: 2px; }
+.segments button { height: 36px; border-radius: 8px; font-size: 14px; }
+.segments button[aria-pressed="true"] { background: var(--card); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+.plan-hint { font-size: 13px; color: var(--muted); text-align: center; padding-top: 6px; min-height: 24px; }
+
+.memo {
+  width: 100%; height: 40px;
+  border: 0; border-radius: 10px;
+  background: var(--track);
+  padding: 0 12px;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.memo::placeholder { color: var(--muted); }
+
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 8px; user-select: none; -webkit-user-select: none; }
+.keypad button { height: 50px; font-size: 22px; font-weight: 500; border-radius: 12px; font-variant-numeric: tabular-nums; }
+.keypad button:active { background: var(--track); }
+
+.sheet-actions { display: flex; gap: 8px; }
+.sheet-actions .primary { flex: 1; }
+
+.backup-note { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+.backup-count { font-weight: 600; margin-bottom: 16px; }
+#backup-sheet .primary { margin-bottom: 8px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 84px);
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: calc(100vw - 40px);
+  background: var(--ink); color: var(--bg);
+  padding: 10px 16px; border-radius: 12px;
+  font-size: 14px; white-space: nowrap;
+}

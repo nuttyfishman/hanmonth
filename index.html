@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한달얼마</title>
+<meta name="description" content="한 달에 얼마 쓰는지 가볍게 적어두는 기록장">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="한달얼마">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F7F5F0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+  <header class="month-nav">
+    <button class="icon-btn" id="prev-month" aria-label="이전 달">‹</button>
+    <h1 id="month-title"></h1>
+    <button class="icon-btn" id="next-month" aria-label="다음 달">›</button>
+  </header>
+
+  <section class="hero">
+    <p class="hero-total" id="total"></p>
+    <p class="hero-delta" id="delta"></p>
+  </section>
+
+  <section class="trend" id="trend" aria-label="최근 6개월 지출"></section>
+
+  <section id="breakdown-section">
+    <h2>어디에 썼나</h2>
+    <ul class="breakdown" id="breakdown"></ul>
+  </section>
+
+  <section id="list-section">
+    <h2>기록</h2>
+    <div id="list"></div>
+  </section>
+
+  <p class="empty" id="empty" hidden>이 달은 아직 기록이 없어요.</p>
+
+  <button class="text-btn" id="open-backup">백업</button>
+</main>
+
+<div class="add-bar"><button class="primary" id="open-add">+ 기록하기</button></div>
+
+<div class="backdrop" id="backdrop" hidden></div>
+
+<section class="sheet" id="entry-sheet" role="dialog" aria-modal="true" aria-label="지출 기록" hidden>
+  <div class="sheet-head">
+    <input class="date-input" id="f-date" type="date" aria-label="날짜">
+    <button class="icon-btn small" data-close aria-label="닫기">✕</button>
+  </div>
+  <p class="amount" id="f-amount" aria-live="polite"></p>
+  <div class="recent" id="f-recent"></div>
+  <div class="cats" id="f-cats"></div>
+  <div class="plan" id="f-plan" hidden>
+    <div class="segments" id="f-plan-buttons" role="group" aria-label="이용 기간"></div>
+    <p class="plan-hint" id="f-plan-hint"></p>
+  </div>
+  <input class="memo" id="f-memo" type="text" placeholder="메모 (안 적어도 돼요)" maxlength="40" enterkeyhint="done">
+  <div class="keypad" id="f-keypad"></div>
+  <div class="sheet-actions">
+    <button class="danger" id="f-delete" hidden>삭제</button>
+    <button class="primary" id="f-save"></button>
+  </div>
+</section>
+
+<section class="sheet" id="backup-sheet" role="dialog" aria-modal="true" aria-label="백업" hidden>
+  <div class="sheet-head">
+    <h2>백업</h2>
+    <button class="icon-btn small" data-close aria-label="닫기">✕</button>
+  </div>
+  <p class="backup-note">기록은 이 아이폰 안에만 저장돼요. 폰을 바꾸거나 앱을 지우기 전에 파일로 빼두세요.</p>
+  <p class="backup-count" id="backup-count"></p>
+  <button class="primary" id="export">파일로 내보내기</button>
+  <label class="secondary">파일에서 가져오기<input id="import" type="file" accept=".json,application/json" hidden></label>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
