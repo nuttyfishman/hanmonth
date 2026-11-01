@@ -24,12 +24,48 @@ const won = (n) => `${n.toLocaleString('ko-KR')}원`;
 
 // ---- 날짜 ----
 const pad = (n) => String(n).padStart(2, '0');
+const toDateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 function daysAgoStr(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return toDateStr(d);
 }
 const todayStr = () => daysAgoStr(0);
+const parseDate = (date) => {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+function addDays(date, n) {
+  const d = parseDate(date);
+  d.setDate(d.getDate() + n);
+  return toDateStr(d);
+}
+// 달력과 같이 일요일을 한 주의 시작으로 본다.
+const weekStartOf = (date) => addDays(date, -parseDate(date).getDay());
+const lastDayOf = (ym) => addDays(`${addMonths(ym, 1)}-01`, -1);
+const shortDate = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`;
+const rangeLabel = (from, to) => (from === to ? shortDate(from) : `${shortDate(from)} – ${shortDate(to)}`);
+
+// ---- 시간 ----
+function nowTime() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+// 시간 칸이 생기기 전 기록은 기록한 시각이 같은 날일 때만 그 시각을 쓴다.
+function entryTime(e) {
+  if (typeof e.time === 'string') return /^\d{2}:\d{2}$/.test(e.time) ? e.time : '';
+  if (!e.createdAt) return '';
+  const d = new Date(e.createdAt);
+  return toDateStr(d) === e.date ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+}
+function timeLabel(time) {
+  if (!time) return '';
+  const [h, m] = time.split(':').map(Number);
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(m)}`;
+}
+const byNewest = (a, b) => b.date.localeCompare(a.date)
+  || entryTime(b).localeCompare(entryTime(a))
+  || (b.createdAt || 0) - (a.createdAt || 0);
 const monthOf = (date) => date.slice(0, 7);
 function addMonths(ym, delta) {
   const [y, m] = ym.split('-').map(Number);
@@ -67,11 +103,22 @@ function persist() {
 let entries = load();
 let viewMonth = monthOf(todayStr());
 let filterCat = null;
+let picked = null; // 달력에서 고른 범위 { from, to }
 
 const snapshot = () => entries.map((e) => ({ ...e }));
 function setMonth(ym) {
   viewMonth = ym;
   filterCat = null;
+  picked = null;
+  render();
+}
+function showMonthOf(date) {
+  if (monthOf(date) === viewMonth) return;
+  viewMonth = monthOf(date);
+  picked = null;
+}
+function togglePicked(from, to) {
+  picked = picked && picked.from === from && picked.to === to ? null : { from, to };
   render();
 }
 
@@ -86,6 +133,17 @@ function shareIn(entry, ym) {
 }
 const monthTotal = (ym) => entries.reduce((sum, e) => sum + shareIn(e, ym), 0);
 
+// 여러 달짜리 이용권은 달 합계에만 나눠 넣고, 하루·한 주 합계에는 넣지 않는다.
+const isPass = (e) => (e.months || 1) > 1;
+const entriesBetween = (from, to) => entries.filter((e) => !isPass(e) && e.date >= from && e.date <= to);
+const sumOf = (list) => list.reduce((sum, e) => sum + e.amount, 0);
+const rangeTotal = (from, to) => sumOf(entriesBetween(from, to));
+
+function compactWon(n) {
+  if (n < 10000) return n.toLocaleString('ko-KR');
+  return `${Math.round(n / 1000) / 10}만`;
+}
+
 // ---- 메인 화면 ----
 function render() {
   if (filterCat && !entries.some((e) => e.cat === filterCat && shareIn(e, viewMonth))) filterCat = null;
@@ -96,7 +154,10 @@ function render() {
   const total = monthTotal(viewMonth);
   $('total').textContent = won(total);
   $('delta').textContent = deltaText(total, monthTotal(addMonths(viewMonth, -1)));
+  renderNowStats();
 
+  renderCalendar();
+  renderPicked();
   renderTrend();
   renderBreakdown(total);
   renderList();
@@ -113,6 +174,102 @@ function deltaText(total, previous) {
   const diff = total - previous;
   if (diff === 0) return '지난달이랑 똑같아요';
   return `지난달보다 ${won(Math.abs(diff))} ${diff > 0 ? '더' : '덜'} 썼어요`;
+}
+
+function renderNowStats() {
+  const today = todayStr();
+  if (viewMonth !== monthOf(today)) {
+    $('now-stats').textContent = '';
+    return;
+  }
+  const start = weekStartOf(today);
+  $('now-stats').textContent = `오늘 ${won(rangeTotal(today, today))} · 이번 주 ${won(rangeTotal(start, addDays(start, 6)))}`;
+}
+
+function renderCalendar() {
+  const today = todayStr();
+  const first = `${viewMonth}-01`;
+  const last = lastDayOf(viewMonth);
+  const lastShown = addDays(weekStartOf(last), 6);
+
+  const totals = new Map();
+  for (const e of entries) {
+    if (!isPass(e)) totals.set(e.date, (totals.get(e.date) || 0) + e.amount);
+  }
+  let max = 1;
+  for (const [date, amount] of totals) {
+    if (date >= first && date <= last && amount > max) max = amount;
+  }
+
+  const head = [...'일월화수목금토', '주'].map((d) => `<div class="cal-head">${d}</div>`).join('');
+  let cells = '';
+  for (let week = weekStartOf(first); week <= lastShown; week = addDays(week, 7)) {
+    for (let i = 0; i < 7; i += 1) {
+      const date = addDays(week, i);
+      const amount = totals.get(date) || 0;
+      const classes = ['cal-day'];
+      if (monthOf(date) !== viewMonth) classes.push('other');
+      if (date === today) classes.push('today');
+      if (picked && picked.from === date && picked.to === date) classes.push('picked');
+      // 많이 쓴 날일수록 보라색이 진해진다.
+      const tint = amount ? `background:rgba(168,130,255,${(0.1 + 0.4 * Math.sqrt(amount / max)).toFixed(2)})` : '';
+      cells += `<button class="${classes.join(' ')}" style="${tint}" data-day="${date}" ${date > today ? 'disabled' : ''} aria-label="${shortDate(date)} ${won(amount)}">
+        <span class="cal-num">${Number(date.slice(8))}</span>
+        <span class="cal-amount">${amount ? compactWon(amount) : ''}</span>
+      </button>`;
+    }
+    const end = addDays(week, 6);
+    const weekSum = rangeTotal(week, end);
+    const isPicked = picked && picked.from === week && picked.to === end;
+    cells += `<button class="cal-week${isPicked ? ' picked' : ''}" data-week="${week}" aria-label="${rangeLabel(week, end)} 주간 합계 ${won(weekSum)}">
+      <span class="cal-amount${weekSum ? '' : ' none'}">${weekSum ? compactWon(weekSum) : '–'}</span>
+    </button>`;
+  }
+  $('calendar').innerHTML = head + cells;
+
+  const hasPass = entries.some((e) => isPass(e) && shareIn(e, viewMonth));
+  $('cal-note').hidden = !hasPass;
+  $('cal-note').textContent = hasPass ? '여러 달짜리 이용권은 하루·주 합계에서 빼고 달 합계에만 나눠 넣었어요.' : '';
+}
+
+function dayGroupHtml(date, list) {
+  return `<div class="day">
+    <div class="day-head"><span>${dayLabel(date)}</span><span>${won(sumOf(list))}</span></div>
+    ${list.map((e) => rowHtml(e, monthOf(e.date))).join('')}
+  </div>`;
+}
+
+function groupByDay(list) {
+  const days = new Map();
+  for (const e of [...list].sort(byNewest)) {
+    if (!days.has(e.date)) days.set(e.date, []);
+    days.get(e.date).push(e);
+  }
+  return days;
+}
+
+function renderPicked() {
+  const el = $('picked');
+  el.hidden = !picked;
+  if (!picked) {
+    el.innerHTML = '';
+    return;
+  }
+  const { from, to } = picked;
+  const list = entriesBetween(from, to);
+  const single = from === to;
+  const start = weekStartOf(from);
+  const sub = single ? `이 주(${rangeLabel(start, addDays(start, 6))}) 합계 ${won(rangeTotal(start, addDays(start, 6)))}` : '';
+  const days = [...groupByDay(list).entries()];
+  el.innerHTML = `<div class="picked-head">
+      <span class="picked-title">${single ? dayLabel(from) : `${rangeLabel(from, to)} 한 주`}</span>
+      <span class="picked-sum">${won(sumOf(list))}</span>
+    </div>
+    ${sub ? `<p class="picked-sub">${sub}</p>` : ''}
+    ${list.length ? '' : `<p class="picked-empty">기록이 없어요.${single ? ' 이 상태로 기록하면 이 날짜로 들어가요.' : ''}</p>`}
+    ${single
+    ? list.sort(byNewest).map((e) => rowHtml(e, monthOf(e.date))).join('')
+    : days.map(([date, rows]) => dayGroupHtml(date, rows)).join('')}`;
 }
 
 function renderTrend() {
@@ -177,9 +334,9 @@ function renderQuick() {
 function quickRecord(cat, amount) {
   const before = snapshot();
   const date = todayStr();
-  entries.push({ id: crypto.randomUUID(), createdAt: Date.now(), date, amount, cat, memo: '', months: 1 });
+  entries.push({ id: crypto.randomUUID(), createdAt: Date.now(), date, time: nowTime(), amount, cat, memo: '', months: 1 });
   persist();
-  viewMonth = monthOf(date);
+  showMonthOf(date);
   render();
   toast(`${CAT_BY_ID[cat].label} ${won(amount)} 기록했어요`, before);
 }
@@ -190,7 +347,9 @@ function rowHtml(e, ym) {
   const notes = [];
   if (months > 1) {
     const nth = monthDiff(monthOf(e.date), ym) + 1;
-    notes.push(`${months}개월권 ${nth}/${months} · 총 ${won(e.amount)}`);
+    notes.push(`${months}개월권 ${nth}/${months} · 총 ${won(e.amount)} · ${shortDate(e.date)} 결제`);
+  } else if (entryTime(e)) {
+    notes.push(timeLabel(entryTime(e)));
   }
   if (e.memo) notes.push(e.memo);
   return `<button class="row" data-edit="${esc(e.id)}">
@@ -207,23 +366,37 @@ function renderList() {
   $('list-title').textContent = filterCat ? `${(CAT_BY_ID[filterCat] || CAT_BY_ID.etc).label} 기록` : '기록';
   $('clear-filter').hidden = !filterCat;
   const visible = entries.filter((e) => shareIn(e, viewMonth) > 0 && (!filterCat || e.cat === filterCat));
-  const carried = visible.filter((e) => monthOf(e.date) !== viewMonth);
-  const days = new Map();
-  for (const e of visible) {
-    if (monthOf(e.date) !== viewMonth) continue;
-    if (!days.has(e.date)) days.set(e.date, []);
-    days.get(e.date).push(e);
+  const passes = visible.filter(isPass);
+  const first = `${viewMonth}-01`;
+  const last = lastDayOf(viewMonth);
+
+  const weeks = new Map();
+  for (const e of visible.filter((x) => !isPass(x)).sort(byNewest)) {
+    const key = weekStartOf(e.date);
+    if (!weeks.has(key)) weeks.set(key, []);
+    weeks.get(key).push(e);
   }
-  const groupHtml = (title, list) => {
-    const sum = list.reduce((s, e) => s + shareIn(e, viewMonth), 0);
-    return `<div class="day">
-      <div class="day-head"><span>${title}</span><span>${won(sum)}</span></div>
-      ${list.map((e) => rowHtml(e, viewMonth)).join('')}
+
+  // 달이 걸친 주는 이 달에 속한 날짜만 보여준다.
+  const weekHtml = [...weeks.entries()].map(([start, list]) => {
+    const from = start < first ? first : start;
+    const end = addDays(start, 6);
+    const to = end > last ? last : end;
+    return `<div class="week-block">
+      <div class="week-head"><span>${rangeLabel(from, to)}</span><span>${won(sumOf(list))}</span></div>
+      ${[...groupByDay(list).entries()].map(([date, rows]) => dayGroupHtml(date, rows)).join('')}
     </div>`;
-  };
-  const sortedDays = [...days.keys()].sort().reverse();
-  $('list').innerHTML = sortedDays.map((d) => groupHtml(dayLabel(d), days.get(d))).join('')
-    + (carried.length ? groupHtml('이어지는 이용권', carried) : '');
+  }).join('');
+
+  const passSum = passes.reduce((s, e) => s + shareIn(e, viewMonth), 0);
+  const passHtml = passes.length
+    ? `<div class="day">
+        <div class="day-head"><span>이 달에 나눠 넣은 이용권</span><span>${won(passSum)}</span></div>
+        ${passes.map((e) => rowHtml(e, viewMonth)).join('')}
+      </div>`
+    : '';
+
+  $('list').innerHTML = weekHtml + passHtml;
 }
 
 // ---- 기록 시트 ----
@@ -247,8 +420,10 @@ function openEntry(entry) {
   form.cat = entry ? entry.cat : null;
   form.months = entry && entry.months ? entry.months : lastGymMonths();
   form.replaceOnType = Boolean(entry);
-  $('f-date').value = entry ? entry.date : todayStr();
+  const pickedDay = picked && picked.from === picked.to ? picked.from : null;
+  $('f-date').value = entry ? entry.date : pickedDay || todayStr();
   $('f-date').max = todayStr();
+  $('f-time').value = entry ? entryTime(entry) : nowTime();
   $('f-memo').value = entry ? entry.memo || '' : '';
   $('f-delete').hidden = !entry;
   renderForm();
@@ -320,6 +495,7 @@ function saveEntry() {
   const before = snapshot();
   const data = {
     date: $('f-date').value || todayStr(),
+    time: $('f-time').value,
     amount,
     cat: form.cat,
     memo: $('f-memo').value.trim(),
@@ -331,7 +507,7 @@ function saveEntry() {
     entries.push({ id: crypto.randomUUID(), createdAt: Date.now(), ...data });
   }
   persist();
-  viewMonth = monthOf(data.date);
+  showMonthOf(data.date);
   closeSheets();
   render();
   toast(`${CAT_BY_ID[data.cat].label} ${won(amount)} ${form.id ? '수정' : '기록'}했어요`, before);
@@ -484,6 +660,16 @@ $('toast-undo').addEventListener('click', undoLast);
 document.querySelectorAll('[data-drag]').forEach(enableSheetDrag);
 enableMonthSwipe($('app'));
 
+$('calendar').addEventListener('click', (ev) => {
+  const day = ev.target.closest('[data-day]');
+  if (day) { togglePicked(day.dataset.day, day.dataset.day); return; }
+  const week = ev.target.closest('[data-week]');
+  if (week) togglePicked(week.dataset.week, addDays(week.dataset.week, 6));
+});
+$('picked').addEventListener('click', (ev) => {
+  const row = ev.target.closest('[data-edit]');
+  if (row) openEntry(entries.find((e) => e.id === row.dataset.edit));
+});
 $('trend').addEventListener('click', (ev) => {
   const col = ev.target.closest('[data-month]');
   if (col) setMonth(col.dataset.month);

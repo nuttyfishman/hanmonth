@@ -25,13 +25,22 @@
   <section class="hero">
     <p class="hero-total" id="total"></p>
     <p class="hero-delta" id="delta"></p>
+    <p class="hero-now" id="now-stats"></p>
   </section>
 
-  <section class="trend" id="trend" aria-label="최근 6개월 지출"></section>
+  <section class="calendar" id="calendar" aria-label="달력"></section>
+  <p class="cal-note" id="cal-note" hidden></p>
+
+  <section class="picked-panel" id="picked" hidden></section>
 
   <section id="breakdown-section">
     <h2>어디에 썼나</h2>
     <ul class="breakdown" id="breakdown"></ul>
+  </section>
+
+  <section id="trend-section">
+    <h2>최근 6개월</h2>
+    <div class="trend" id="trend"></div>
   </section>
 
   <section id="list-section">
@@ -68,7 +77,10 @@
     <div class="segments" id="f-plan-buttons" role="group" aria-label="이용 기간"></div>
     <p class="plan-hint" id="f-plan-hint"></p>
   </div>
-  <input class="memo" id="f-memo" type="text" placeholder="메모 (안 적어도 돼요)" maxlength="40" enterkeyhint="done">
+  <div class="memo-row">
+    <input class="time-input" id="f-time" type="time" aria-label="시간">
+    <input class="memo" id="f-memo" type="text" placeholder="메모 (안 적어도 돼요)" maxlength="40" enterkeyhint="done">
+  </div>
   <div class="keypad" id="f-keypad"></div>
   <div class="sheet-actions">
     <button class="danger" id="f-delete" hidden>삭제</button>
