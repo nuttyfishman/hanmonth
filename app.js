@@ -1170,4 +1170,14 @@ document.addEventListener('visibilitychange', () => {
 render();
 
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  // 새 버전 서비스워커가 이 화면을 넘겨받으면 한 번 새로고침해서 새 파일로 다시 그린다.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

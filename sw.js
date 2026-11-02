@@ -1,8 +1,16 @@
-const CACHE = 'hanmonth-v1';
+const CACHE = 'hanmonth-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
+// 브라우저 HTTP 캐시(GitHub Pages는 10분)를 거치지 않고 서버에 새 버전이 있는지 꼭 확인한다.
+// 이걸 안 하면 새 index.html에 예전 style.css가 섞여서 화면이 깨진다.
+const fresh = (request) => fetch(request, { cache: 'no-cache' });
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -13,21 +21,18 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 저장된 걸 바로 보여주고 뒤에서 새 버전을 받아둔다. 수정본은 다음 실행 때 반영된다.
+// 인터넷이 되면 늘 서버 것을 쓰고 저장해 둔다. 안 되면 저장해 둔 걸 보여준다.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(event.request, { ignoreSearch: true });
-      const refresh = fetch(event.request).then((res) => {
+      try {
+        const res = await fresh(event.request);
         if (res.ok) cache.put(event.request, res.clone());
         return res;
-      });
-      if (cached) {
-        refresh.catch(() => {});
-        return cached;
+      } catch {
+        return (await cache.match(event.request, { ignoreSearch: true })) || cache.match('index.html');
       }
-      return refresh.catch(() => cache.match('index.html'));
     }),
   );
 });
