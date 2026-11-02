@@ -15,45 +15,105 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<nav class="sidebar" id="sidebar" aria-label="메뉴">
+  <div class="side-brand">
+    <p class="side-name">한달얼마</p>
+    <p class="side-sub" id="side-sub"></p>
+  </div>
+  <ul class="side-nav">
+    <li><a class="side-item" href="#home" data-view="home"><span class="side-emoji" aria-hidden="true">📒</span>가계부</a></li>
+    <li><a class="side-item" href="#budget" data-view="budget"><span class="side-emoji" aria-hidden="true">🎯</span>예산<span class="side-badge" id="side-budget"></span></a></li>
+    <li><a class="side-item" href="#stats" data-view="stats"><span class="side-emoji" aria-hidden="true">📊</span>분석</a></li>
+    <li><a class="side-item" href="#search" data-view="search"><span class="side-emoji" aria-hidden="true">🔍</span>검색</a></li>
+  </ul>
+  <div class="side-foot">
+    <button class="side-item" id="open-backup"><span class="side-emoji" aria-hidden="true">💾</span>백업</button>
+    <p class="side-note" id="side-note"></p>
+  </div>
+</nav>
+<div class="nav-backdrop" id="nav-backdrop" hidden></div>
+
 <main id="app">
-  <header class="month-nav">
-    <button class="icon-btn" id="prev-month" aria-label="이전 달">‹</button>
-    <h1><button id="month-title" aria-label="이번 달로 돌아가기"></button></h1>
-    <button class="icon-btn" id="next-month" aria-label="다음 달">›</button>
+  <header class="topbar">
+    <button class="icon-btn menu-btn" id="open-nav" aria-label="메뉴 열기" aria-controls="sidebar" aria-expanded="false">☰</button>
+    <div class="month-nav" id="month-nav">
+      <button class="icon-btn" id="prev-month" aria-label="이전 달">‹</button>
+      <h1><button id="month-title" aria-label="이번 달로 돌아가기"></button></h1>
+      <button class="icon-btn" id="next-month" aria-label="다음 달">›</button>
+    </div>
+    <h1 class="view-title" id="view-title" hidden></h1>
   </header>
 
-  <section class="hero">
-    <p class="hero-total" id="total"></p>
-    <p class="hero-delta" id="delta"></p>
-    <p class="hero-now" id="now-stats"></p>
-  </section>
+  <div class="view" id="view-home">
+    <section class="hero">
+      <p class="hero-total" id="total"></p>
+      <p class="hero-delta" id="delta"></p>
+      <p class="hero-now" id="now-stats"></p>
+      <a class="hero-budget" id="budget-line" href="#budget" hidden></a>
+    </section>
 
-  <section class="calendar" id="calendar" aria-label="달력"></section>
-  <p class="cal-note" id="cal-note" hidden></p>
+    <section class="calendar" id="calendar" aria-label="달력"></section>
+    <p class="cal-note" id="cal-note" hidden></p>
 
-  <section class="picked-panel" id="picked" hidden></section>
+    <section class="picked-panel" id="picked" hidden></section>
 
-  <section id="breakdown-section">
-    <h2>어디에 썼나</h2>
-    <ul class="breakdown" id="breakdown"></ul>
-  </section>
+    <section id="breakdown-section">
+      <h2>어디에 썼나</h2>
+      <ul class="breakdown" id="breakdown"></ul>
+    </section>
 
-  <section id="trend-section">
-    <h2>최근 6개월</h2>
-    <div class="trend" id="trend"></div>
-  </section>
+    <section id="trend-section">
+      <h2>최근 6개월</h2>
+      <div class="trend" id="trend"></div>
+    </section>
 
-  <section id="list-section">
-    <h2 class="list-head"><span id="list-title">기록</span><button id="clear-filter" hidden>전체 보기</button></h2>
-    <div id="list"></div>
-  </section>
+    <section id="list-section">
+      <h2 class="list-head"><span id="list-title">기록</span><button id="clear-filter" hidden>전체 보기</button></h2>
+      <div id="list"></div>
+    </section>
 
-  <p class="empty" id="empty" hidden>이 달은 아직 기록이 없어요.<br>아래 버튼으로 남겨보세요.</p>
+    <p class="empty" id="empty" hidden>이 달은 아직 기록이 없어요.<br>아래 버튼으로 남겨보세요.</p>
+  </div>
 
-  <button class="text-btn" id="open-backup">백업</button>
+  <div class="view" id="view-budget" hidden>
+    <section class="budget-hero" id="budget-hero"></section>
+    <section>
+      <button class="budget-set" id="budget-total-btn" data-budget="total"></button>
+    </section>
+    <section>
+      <h2>항목별 예산</h2>
+      <ul id="budget-list"></ul>
+    </section>
+    <p class="view-note">예산은 매달 똑같이 적용돼요. 여러 달짜리 이용권은 그 달에 나눠 넣은 만큼만 잡혀요.</p>
+  </div>
+
+  <div class="view" id="view-stats" hidden>
+    <section class="stat-grid" id="stat-grid"></section>
+    <section>
+      <h2>요일별</h2>
+      <div class="trend seven" id="weekday"></div>
+    </section>
+    <section id="cat-trend-section">
+      <h2>항목별 6개월</h2>
+      <div class="chip-row" id="stat-cats"></div>
+      <div class="trend" id="cat-trend"></div>
+      <p class="stat-note" id="cat-trend-note"></p>
+    </section>
+    <section id="cycle-section">
+      <h2>마지막으로 쓴 날</h2>
+      <ul id="cycle"></ul>
+    </section>
+  </div>
+
+  <div class="view" id="view-search" hidden>
+    <input class="search-input" id="search" type="search" placeholder="메모, 항목, 금액으로 찾기" enterkeyhint="search" autocomplete="off">
+    <div class="search-cats" id="search-cats"></div>
+    <p class="search-summary" id="search-summary"></p>
+    <div id="search-results"></div>
+  </div>
 </main>
 
-<div class="add-bar">
+<div class="add-bar" id="add-bar">
   <div class="quick" id="quick"></div>
   <button class="primary" id="open-add">+ 기록하기</button>
 </div>
@@ -98,6 +158,21 @@
   <p class="backup-count" id="backup-count"></p>
   <button class="primary" id="export">파일로 내보내기</button>
   <label class="secondary">파일에서 가져오기<input id="import" type="file" accept=".json,application/json" hidden></label>
+</section>
+
+<section class="sheet" id="budget-sheet" role="dialog" aria-modal="true" aria-label="예산 정하기" hidden>
+  <div class="sheet-grip" data-drag></div>
+  <div class="sheet-head" data-drag>
+    <h2 id="b-title"></h2>
+    <button class="icon-btn small" data-close aria-label="닫기">✕</button>
+  </div>
+  <p class="amount" id="b-amount" aria-live="polite"></p>
+  <div class="recent" id="b-suggest"></div>
+  <div class="keypad" id="b-keypad"></div>
+  <div class="sheet-actions">
+    <button class="danger" id="b-clear" hidden>없애기</button>
+    <button class="primary" id="b-save">저장</button>
+  </div>
 </section>
 
 <div class="toast" id="toast" role="status" hidden>
